@@ -1,16 +1,31 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { TweetProgram } from "../target/types/tweet_program";
 
 describe("tweet_program", () => {
-  // Configure the client to use the local cluster.
-  anchor.setProvider(anchor.AnchorProvider.env());
+  const provider = anchor.AnchorProvider.local();
+  anchor.setProvider(provider);
+  const program = anchor.workspace.TweetProgram;
 
-  const program = anchor.workspace.tweetProgram as Program<TweetProgram>;
+  const user = provider.wallet.publicKey;
 
-  it("Is initialized!", async () => {
-    // Add your test here.
-    const tx = await program.methods.initialize().rpc();
-    console.log("Your transaction signature", tx);
+  const [tweetPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("tweet"), user.toBuffer()],
+    program.programId
+  );
+
+  it("creates a tweet", async () => {
+    await program.methods
+      .createTweet("Hello Solana world")
+      .accounts({
+        tweet: tweetPda,
+        user: user,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    const acc = await program.account.tweet.fetch(tweetPda);
+
+    console.log("author:", acc.author.toBase58());
+    console.log("timestamp:", acc.timestamp.toString());
+    console.log("text:", acc.text);
   });
 });
